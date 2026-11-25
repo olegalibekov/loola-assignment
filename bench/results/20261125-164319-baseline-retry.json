@@ -1,0 +1,58 @@
+{
+  "settings": {
+    "model": "gemini-3.5-flash-lite",
+    "sandbox": "none",
+    "runs": 1,
+    "seed": 7,
+    "window": 128000,
+    "enforce_window": false,
+    "max_turns": 120,
+    "max_output_tokens": 4096,
+    "temperature": 0.1
+  },
+  "rows": [
+    {
+      "variant": "original-retry",
+      "run": 1,
+      "exit_code": 1,
+      "wall_seconds": 269.0,
+      "status": "crashed",
+      "error": "HTTPError: 503 Server Error: Service Unavailable for url: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "turns": 4,
+      "requests": 3,
+      "prompt_tokens": 5534,
+      "completion_tokens": 57,
+      "cached_tokens": 0,
+      "peak_prompt_tokens": 3663,
+      "prefix_reuse": null,
+      "uncached_prompt_tokens_est": null,
+      "tool_calls": 3,
+      "tool_errors": null,
+      "intercepted": null,
+      "compactions": 0,
+      "summaries": 0,
+      "elisions": 0,
+      "skill_loads": 0,
+      "tool_searches": 0,
+      "catalog_calls": 0,
+      "llm_retries": 8,
+      "checks_passed": 0,
+      "checks_total": 12,
+      "success": false,
+      "failed_checks": [
+        "git_commit",
+        "incident_note",
+        "tests_pass",
+        "hidden_parser",
+        "hidden_pricing",
+        "hidden_stock",
+        "hidden_top_products",
+        "hidden_cli",
+        "summary_json",
+        "new_tests",
+        "changelog",
+        "report"
+      ]
+    }
+  ]
+}

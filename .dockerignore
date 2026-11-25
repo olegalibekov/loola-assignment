@@ -1,0 +1,15 @@
+# Nothing secret or bulky goes into the build context.
+.env
+.env.*
+!.env.example
+.git
+.venv
+.idea
+runs
+docs
+tests
+**/__pycache__
+*.egg-info
+build
+dist
+.pytest_cache

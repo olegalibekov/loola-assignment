@@ -1,0 +1,80 @@
+{
+  "settings": {
+    "model": "gemini-3.5-flash-lite",
+    "runs": 1,
+    "seed": 7,
+    "window": 128000,
+    "enforce_window": false,
+    "max_turns": 120,
+    "max_output_tokens": 4096,
+    "temperature": 0.1
+  },
+  "rows": [
+    {
+      "variant": "eager",
+      "run": 1,
+      "exit_code": 0,
+      "wall_seconds": 296.0,
+      "status": "finished",
+      "error": "",
+      "turns": 42,
+      "requests": 42,
+      "prompt_tokens": 520520,
+      "completion_tokens": 4007,
+      "cached_tokens": 384981,
+      "peak_prompt_tokens": 18725,
+      "prefix_reuse": 0.9646,
+      "uncached_prompt_tokens_est": 18477,
+      "tool_calls": 41,
+      "tool_errors": {},
+      "intercepted": {
+        "llm_retry": 32
+      },
+      "compactions": 0,
+      "summaries": 0,
+      "elisions": 0,
+      "skill_loads": 0,
+      "tool_searches": 0,
+      "catalog_calls": 20,
+      "llm_retries": 32,
+      "checks_passed": 12,
+      "checks_total": 12,
+      "success": true,
+      "failed_checks": []
+    },
+    {
+      "variant": "full",
+      "run": 1,
+      "exit_code": 0,
+      "wall_seconds": 360.5,
+      "status": "finished",
+      "error": "",
+      "turns": 40,
+      "requests": 40,
+      "prompt_tokens": 577056,
+      "completion_tokens": 4510,
+      "cached_tokens": 454605,
+      "peak_prompt_tokens": 22242,
+      "prefix_reuse": 0.9603,
+      "uncached_prompt_tokens_est": 23322,
+      "tool_calls": 39,
+      "tool_errors": {},
+      "intercepted": {
+        "auto_routed": 28,
+        "capped_output": 1,
+        "llm_retry": 32
+      },
+      "compactions": 0,
+      "summaries": 0,
+      "elisions": 0,
+      "skill_loads": 2,
+      "tool_searches": 0,
+      "catalog_calls": 0,
+      "llm_retries": 32,
+      "checks_passed": 12,
+      "checks_total": 12,
+      "success": true,
+      "failed_checks": []
+    }
+  ]
+}

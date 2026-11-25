@@ -1,0 +1,90 @@
+{
+  "settings": {
+    "model": "gemini-3.5-flash-lite",
+    "sandbox": "none",
+    "runs": 1,
+    "seed": 7,
+    "window": 16000,
+    "enforce_window": true,
+    "max_turns": 120,
+    "max_output_tokens": 4096,
+    "temperature": 0.1
+  },
+  "rows": [
+    {
+      "variant": "full-nocompact",
+      "run": 1,
+      "exit_code": 1,
+      "wall_seconds": 222.9,
+      "status": "context_overflow",
+      "error": "prompt of ~12015 tokens exceeds the usable window of 11904 (simulated limit)",
+      "turns": 26,
+      "requests": 25,
+      "prompt_tokens": 169807,
+      "completion_tokens": 3321,
+      "cached_tokens": 87738,
+      "peak_prompt_tokens": 11857,
+      "prefix_reuse": 0.9324,
+      "uncached_prompt_tokens_est": 11610,
+      "tool_calls": 25,
+      "tool_errors": {},
+      "intercepted": {
+        "auto_routed": 1,
+        "llm_retry": 19
+      },
+      "compactions": 0,
+      "summaries": 0,
+      "elisions": 0,
+      "skill_loads": 2,
+      "tool_searches": 1,
+      "catalog_calls": 7,
+      "llm_retries": 19,
+      "checks_passed": 6,
+      "checks_total": 12,
+      "success": false,
+      "failed_checks": [
+        "git_commit",
+        "hidden_cli",
+        "summary_json",
+        "new_tests",
+        "changelog",
+        "report"
+      ]
+    },
+    {
+      "variant": "full",
+      "run": 1,
+      "exit_code": 0,
+      "wall_seconds": 284.3,
+      "status": "finished",
+      "error": "",
+      "turns": 39,
+      "requests": 42,
+      "prompt_tokens": 260069,
+      "completion_tokens": 6217,
+      "cached_tokens": 114138,
+      "peak_prompt_tokens": 8784,
+      "prefix_reuse": 0.9116,
+      "uncached_prompt_tokens_est": 23959,
+      "tool_calls": 38,
+      "tool_errors": {
+        "invalid_arguments": 1
+      },
+      "intercepted": {
+        "llm_retry": 19,
+        "auto_routed": 8
+      },
+      "compactions": 3,
+      "summaries": 3,
+      "elisions": 0,
+      "skill_loads": 4,
+      "tool_searches": 0,
+      "catalog_calls": 6,
+      "llm_retries": 19,
+      "checks_passed": 12,
+      "checks_total": 12,
+      "success": true,
+      "failed_checks": []
+    }
+  ]
+}

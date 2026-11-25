@@ -1,0 +1,27 @@
+.venv/
+.idea/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.env
+.env.*
+!.env.example
+runs/
+.DS_Store
+
+# Generated benchmark reports; retain the evidence cited in README.
+/bench/results/*
+!/bench/results/replay-offline.json
+!/bench/results/replay-offline.md
+!/bench/results/20261125-161442-quick-unlimited.json
+!/bench/results/20261125-161442-quick-unlimited.md
+!/bench/results/20261125-162042-quick-16k.json
+!/bench/results/20261125-162042-quick-16k.md
+!/bench/results/20261125-164319-16k-second.json
+!/bench/results/20261125-164319-16k-second.md
+!/bench/results/20261125-164319-baseline-retry.json
+!/bench/results/20261125-164319-baseline-retry.md
+# Add explicit exceptions when publishing a new comparable series.
