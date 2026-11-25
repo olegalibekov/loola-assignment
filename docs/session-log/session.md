@@ -1,125 +1,182 @@
-# Agent-assisted development record
+# Лог работы с агентом — loola-harness
 
-This is an edited summary of the implementation and review work performed with Claude Code and Codex.
-The task briefs below are normalized summaries, not verbatim prompts. Repeated troubleshooting,
-credentials, personal details, and unrelated discussion are omitted. Findings and validation results
-retain their original scope; unfinished work is identified explicitly.
+**Дата:** 25 ноября 2026 года.  
+**Формат:** единый сокращённый журнал нескольких сессий работы с AI-агентами: первоначальной
+разработки и последующей проверки и доработки. Основан на исходном журнале разработки и записи
+последующих изменений.
 
-## 1. Inspect the baseline and define acceptance criteria
+## Этап I. Первоначальная разработка
 
-**Task brief:** Inspect the supplied agent loop. Identify correctness issues and establish what a
-successful implementation must demonstrate.
+### Постановка задачи и реализация
 
-The baseline has one shell tool and an append-only conversation. Its limitations include unguarded
-argument parsing, one assistant message per tool call, no HTTP retries, and unbounded tool output.
-The original behavior was retained as the benchmark reference, with instrumentation isolated by
-`# [bench]` annotations. A separate retry variant distinguishes transport resilience from loop behavior.
+**Запрос пользователя, пересказ:** Расширить минимальный Python-цикл агента динамической загрузкой
+инструментов и скиллов, добавить compaction, проверить поведение на длинной задаче и объяснить
+сохранение кешируемого префикса и разделение ответственности за ошибки.
 
-Acceptance criteria were made explicit: discover tools and skills on demand; preserve a stable request
-prefix between compactions; recover from context pressure; measure token usage and task success;
-and verify the generated workspace independently of the agent's final answer.
+**Действия и решения, зафиксированные в исходном журнале:**
 
-## 2. Analyze prefix-cache behavior and choose the loading strategy
+- Реализованы примитивы инструментов: схемы, проверка и восстановление аргументов, запуск процессов
+  и структурированные ошибки. Затем добавлены базовые инструменты и каталог из 39 инструментов.
+- Добавлены реестр и три режима загрузки: eager, append и dispatch. Они позволяют сравнить
+  полную загрузку, добавление схем по запросу и вызов через постоянную схему диспетчера.
+- Реализовано хранилище скиллов: краткий индекс входит в статический системный промпт,
+  а полное содержимое загружается результатом инструмента в конец истории.
+- Добавлены управление контекстом, compaction и агентный цикл. Зафиксированы правила стабильного
+  префикса и целостности последовательности assistant/tool сообщений.
 
-**Task brief:** Analyze which request changes invalidate the shared prefix. Design lazy loading around
-stable schemas and deterministic serialization.
+### Измерения и изоляция выполнения
 
-Three strategies provide observable controls: eager schemas, append-only schema loading, and a fixed
-dispatch interface. In dispatch mode, tool discovery and skill content arrive as tool results at the
-end of the conversation. The native tool definitions remain constant. A compact catalog index supplies
-names and signatures without including every full schema and skill body in every request.
+**Задачи этапа, пересказ:** Сравнить варианты на реальной модели и при ограниченном окне;
+проверить изоляцию инструментов от API-ключа и описать ограничения измерений.
 
-The system prompt excludes timestamps, working-directory values, and per-run counters. History is
-append-only between compactions. Each model reply produces one assistant message containing all of
-its calls, followed by one tool result per call. Stored arguments are always valid JSON.
+**Зафиксированная работа:**
 
-## 3. Implement context compaction with explicit invariants
+- Выполнены предварительные модельные прогоны с неограниченным и ограниченным окном.
+  В исходном обсуждении явно отмечено, что динамическая загрузка не дала экономии токенов
+  в одной из пар с неограниченным окном. Единичные прогоны не представлены как статистическое
+  доказательство преимущества.
+- Зафиксировано переполнение окна при отключённом compaction; прогоны со сжатием рассмотрены
+  отдельно. Повторы после HTTP 429/503 выделены как фактор длительности и неполноты серии.
+- Добавлены Docker-запуск, непривилегированный пользователь инструментов и ограничение файловых
+  операций рабочим каталогом. Проверена недоступность окружения процесса харнесса из инструментов.
+- В конце исходного журнала зафиксированы 97 прошедших тестов и работающий Docker-конвейер.
+  Это результат первоначального этапа, а не число тестов текущей версии.
+- README дополнен результатами, описанием изоляции и ограничениями предварительных измерений.
+  Числа модельных прогонов следует читать в сохранённых отчётах вместе с их конфигурацией.
 
-**Task brief:** Implement bounded context growth while preserving task state, tool-call boundaries,
-and the stable system/task prefix.
+## Этап II. Проверка и доработка
 
-Tool output is capped before entering history. Compaction uses a high trigger and a lower target to
-avoid repeated rewrites near the window boundary. The first level replaces old large outputs with
-deterministic stubs. When that is insufficient, the second level requests a structured summary.
+На начало этого этапа динамическая загрузка, compaction, тесты и первоначальные результаты
+уже существовали. Далее описана проверка и развитие этой реализации.
 
-Cuts occur at complete turn boundaries. The system prompt and original task prefix stay unchanged;
-recent messages are retained verbatim. Loaded skills, discovered tools, and references to saved
-outputs are carried forward deterministically. The summary request retains the same tool definitions
-and appends an instruction to the existing conversation.
+### 1. Inspect — проверить реализацию и требования
 
-Compaction necessarily changes the summarized portion of history. The design preserves the earlier
-static prefix and makes this rewrite infrequent; it does not claim that all cached context survives.
+**Запрос пользователя, пересказ:** Проинспектировать проект, найти проблемы и проверить соответствие
+исходному заданию.
 
-## 4. Harden execution and classify errors by who can recover
+**Действия агента:** Изучены цикл, клиент модели, управление контекстом, реестр инструментов,
+бенчмарк, тесты и инструкции `AGENTS.md`. Проверены требования к динамической загрузке,
+сжатию контекста, измерениям и документации.
 
-**Task brief:** Review failure paths. Return actionable errors to the model and handle infrastructure
-failures deterministically in the harness.
+**Выводы и решения:**
 
-Missing files, invalid arguments, ambiguous edits, and other correctable tool errors return structured
-`ERROR [kind]` messages with hints. Transport retries, context overflow, truncated responses, malformed
-history, and repeated-call loops are handled by the harness. Authentication and configuration failures
-terminate the run rather than being retried indefinitely.
+- В dispatch-режиме модель получает постоянный набор схем. Полные схемы каталога и тела скиллов
+  поступают через результаты инструментов, не меняя начало промпта.
+- Системный промпт статичен; история между compaction только дописывается. Один ответ модели
+  сохраняется одним assistant-сообщением со всеми вызовами, затем идут результаты этих вызовов.
+- Compaction имеет два уровня: детерминированное сокращение старых выводов и структурированное
+  саммари. Разрез проходит по границе хода; системный промпт и исходная задача сохраняются.
+- Переписанная часть истории после compaction требует нового кеширования. Проверяемое обещание —
+  стабильность префикса между сжатиями и сохранение раннего статического префикса при сжатии.
 
-Additional fixes include strict provider completion-status handling, shared API-attempt budgets,
-a cooperative run deadline, interruption metrics, bounded subprocess output capture, finite pipe-drain
-and process-reap waits, and safe filenames for saved outputs. The time budget is explicitly cooperative;
-it does not preempt arbitrary in-process work.
+### 2. Analyze and improve — устранить ошибки исполнения
 
-Docker uses separate agent and checker images. The agent image excludes the task generator, hidden
-checker, and reference replay. Tool processes run under an unprivileged identity with a scrubbed
-environment; filesystem operations enforce workspace boundaries.
+**Запрос пользователя, пересказ:** Улучшить надёжность в ограниченное время и подтвердить изменения
+офлайн-тестами.
 
-## 5. Compare baseline and improved variants with reproducible evidence
+**Действия и изменения:**
 
-**Task brief:** Compare token usage and task completion on the same long, multi-step task. Separate
-mechanical replay evidence from real-model performance.
+- Исправлена обработка причин завершения ответа: фильтрация и неизвестный `finish_reason`
+  не считаются успешным завершением; вызовы инструментов из таких ответов не выполняются.
+- Добавлены общий бюджет API-попыток, включая повторы и саммари, кооперативный лимит времени,
+  валидация конфигурации и сохранение статуса при прерывании.
+- Ограничен захват stdout/stderr. Ожидание закрытия pipe и завершения процесса после таймаута
+  стало конечным, в том числе при потомках с унаследованными дескрипторами.
+- Исправлено формирование имён файлов с сохранёнными выводами инструментов.
+- Разделены Docker-образы агента и чекера. В образе агента отсутствуют генератор задания,
+  скрытый чекер и эталонный replay. Проверена остановка процессов после смены UID.
+- Добавлены отпечатки исходников до и после прогона, безопасные метаданные среды, идентификаторы
+  образов и локальная блокировка серии на ключ. Изменение исходников останавливает серию.
 
-The benchmark generates a deterministic workspace and evaluates it with 12 independent checks.
-Scripted replay exercises real tools through a fixed trajectory, allowing comparisons of loading,
-output caps, compaction, and reusable-prefix length. Its token counts are estimates; replay success
-is not evidence of model reasoning performance.
+**Принцип обработки ошибок:** Модель получает ошибки, которые может исправить следующим действием:
+аргументы, путь, неоднозначную правку или неверное имя инструмента. Транспорт, переполнение окна,
+обрезанные ответы и зацикливание обрабатывает харнесс. Ошибки авторизации и конфигурации завершают
+прогон. Лимит времени остаётся кооперативным и не обещает принудительно прервать любой in-process код.
 
-The model runner records provider usage and checker results. Controlled variants isolate loading
-(`eager-managed` versus `full`), compaction (`full-nocompact` versus `full`), and output capping
-(`full-no-cap` versus `full`). Source manifests, environment metadata, and Docker image IDs make each
-series auditable. A local per-key lock prevents overlapping series, and source drift stops a series.
+### 3. Refactor — организовать код по ответственности
 
-Saved reports remain in [bench/results](../../bench/results); the [README](../../README.md) explains
-which measurements belong to the earlier implementation. Later real-model attempts encountered
-HTTP 503 and 429 responses. Those failures do not establish an advantage for compaction or loading.
-The baseline logs do not retain enough provider detail to identify the precise exhausted quota.
+**Запрос пользователя, пересказ:** Разложить файлы по логическим подпапкам и назвать проект
+`loola-harness`.
 
-## 6. Refactor by responsibility and verify the result
+**Действия агента:**
 
-**Task brief:** Review module boundaries, organize related files into subfolders, and verify that
-structural changes preserve behavior.
+- Выделены `harness/runtime`, `harness/context`, `harness/llm` и `harness/tools`.
+- Реализации каталога сгруппированы по файловым операциям, тексту, Python, Git, данным,
+  архивам и системным операциям.
+- Бенчмарк разделён на `bench/task`, `bench/runners` и `bench/sandbox`; тесты отражают эту структуру.
+- Обновлены импорты, точки входа Docker, обнаружение Python-пакетов и ссылки в документации.
+- Переименован каталог проекта; исправлены пути виртуального окружения. Для активного запуска
+  и открытого рабочего пространства сохранена временная ссылка со старого пути.
 
-The harness is grouped into runtime, context, LLM, and tool packages. Catalog implementations are
-separated by operation type. Benchmark code is grouped into task, runners, and sandbox packages;
-tests mirror these responsibilities. Public CLI entry points remain small.
+**Проверка:** Снимки системных промптов и упорядоченных схем инструментов совпали до и после переноса
+в режимах eager, append и dispatch. Текст задания, генерируемые данные и тела функций чекера также
+совпали. Основные CLI-команды сохранены.
 
-Before and after the file moves, snapshots confirmed identical system prompts and ordered tool
-schemas in all three loading modes. The task text, generated workspace, and checker function bodies
-also matched. This avoids attributing a benchmark change to a directory refactor.
+### 4. Diagnose — проверить доступ к модели
 
-| Validation performed | Observed result | Scope |
-|---|---|---|
-| Full offline test suite | 214 passed | Harness, tools, and benchmark logic |
-| Docker selfcheck | 20 probes passed | Tested isolation and execution boundaries, using a fake key |
-| Docker checker with scripted reference solution | 12/12 checks passed | Pipeline verification, not model success |
-| CLI help checks | 8 entry points passed | Preserved command interfaces |
-| Offline wheel build | Build succeeded; all 29 harness modules included | Package contents |
-| Prompt and task snapshots | Matched before and after moves | Refactor invariants |
+**Запрос пользователя, пересказ:** Проверить URL Gemini и причины аварийных завершений бенчмарка;
+обновить локальную конфигурацию по предоставленному примеру.
 
-GitHub Actions configuration covers Python 3.10, 3.12, and 3.14 plus Docker selfcheck. These local
-results do not imply that the remote CI matrix has run successfully.
+**Действия агента:** Проверена официальная документация и построение URL в клиенте. Проанализированы
+существующие `metrics.json` и `conversation.log`. Настройки обновлены в исключённом из Git `.env`;
+права файла установлены в `0600`, загрузка значений проверена без вывода ключа.
 
-## Review handoff
+**Наблюдения:**
 
-The implementation, assignment answers, tests, and this session record are available for review.
-The remaining evidence gap is a completed comparable real-model series for the current version.
-GitHub publication and remote CI validation have not been confirmed in this record.
+- В одном baseline-прогоне семь запросов завершились успешно, следующий получил HTTP 503.
+- В других попытках HTTP 429 или 503 приходил уже на первом запросе.
+- `original` сохраняет поведение исходного скрипта без повторов; отдельный `original-retry`
+  добавляет транспортные повторы. Изменять baseline ради успешного отчёта не потребовалось.
+- Сохранённые baseline-ошибки не содержат тела ответа с точной квотой. Причину конкретного
+  ограничения RPM, TPM или RPD по этим артефактам установить нельзя.
+- Блокировка параллельного запуска проверена: после окончания предыдущего процесса она
+  освобождалась. Удаление lock-файла не требовалось.
 
-Credentials, IDE settings, virtual environments, caches, and local run workspaces are excluded from
-the review archive. Benchmark reports are retained as supporting evidence. Superseded session exports
-were archived outside the repository when this consolidated record was prepared.
+### 5. Compare and verify — проверить механику и интерпретацию измерений
+
+**Запрос пользователя, пересказ:** Проверить реализацию и объяснить результаты сравнения до и после
+изменений.
+
+**Действия агента:** Выполнены офлайн-тесты, Docker selfcheck, проверка отдельного чекера на эталонном
+решении, проверки CLI и сборка wheel. Проверены разграничение offline replay и реальных модельных
+прогонов, а также контрольные варианты для загрузки, compaction и ограничения вывода.
+
+| Проверка в сессии | Зафиксированный результат |
+|---|---|
+| Полный набор офлайн-тестов | 214 passed; последний повтор — 34.83 s |
+| Docker selfcheck с искусственным ключом | 20 проверок прошли |
+| Docker-чекер на заскриптованном эталонном решении | 12/12 |
+| Вызовы CLI с `--help` | 8 точек входа проверены |
+| Сборка wheel без сети | Успешна; включены все 29 модулей харнесса |
+| Снимки промптов, схем и задания после реорганизации | Совпадают с исходными |
+
+**Интерпретация:** Реплей подтверждает механику харнесса на фиксированной траектории с оценкой
+токенов по символам. Доля повторяемого префикса — оценка возможности переиспользования, а не
+фактические cache hits сервера. Проверка эталонного решения подтверждает конвейер и чекер,
+но не успешность модели. HTTP 429/503 не доказывают преимущество compaction или загрузки.
+
+Численные отчёты сохранены в [bench/results](../../bench/results), интерпретация и ограничения —
+в [README](../../README.md). Исторические результаты относятся к предыдущей версии. Сопоставимая
+серия на реальной модели для текущей версии на момент проверки не завершена.
+
+### 6. Prepare for review — подготовить материалы сдачи
+
+**Запрос пользователя, пересказ:** Проверить готовность проекта, убрать лишние артефакты и оформить
+один ясный лог работы с агентом.
+
+**Действия агента:**
+
+- Сопоставлены реализация, тесты и документация с требованиями задания. Ответы на оба вопроса
+  задания присутствуют в README; правила работы с кодом сохранены в `AGENTS.md`.
+- Устаревшие экспорты переписки и renderer перенесены за пределы репозитория. В проекте оставлен
+  один объединённый редактированный лог первоначальной разработки и доработок — этот файл.
+- `.gitignore` исключает ключи, локальные запуски, виртуальное окружение, IDE-файлы и кеши.
+  Для десяти JSON/Markdown-файлов с доказательствами из README оставлены явные исключения,
+  включая отчёт о неуспешном baseline. Новые отчёты игнорируются независимо от исхода прогона.
+- Проверены ссылки и отсутствие действующего ключа в публикуемых файлах. Подготовлен отдельный
+  архив для ревью без локального окружения и рабочих каталогов запусков.
+
+**Статус передачи:** Реализация и офлайн-проверки готовы к техническому ревью. Завершённая серия
+сопоставимых реальных замеров, публикация GitHub-репозитория и успешный запуск удалённой матрицы CI
+в рамках этого журнала не подтверждены. Конфигурация CI подготовлена; локальные проверки не заменяют
+подтверждение её выполнения на GitHub.
